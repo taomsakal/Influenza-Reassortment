@@ -2,7 +2,6 @@
 The agent and simulation class live here.
 """
  
-import imp
 import random
 from random import *
 import numpy as np
