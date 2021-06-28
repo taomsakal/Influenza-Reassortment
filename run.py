@@ -31,5 +31,6 @@ model_data = batch_run.get_collector_model()
 
 for i in range(0, 24, 5):
     D = model_data[(0,0)].iloc[i]["Strain_data"]
+    #D = {k:v for k,v in D.items() if "Poultry" in k}
     plt.bar(*zip(*D.items()))
     plt.show()
