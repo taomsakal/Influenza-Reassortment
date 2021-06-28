@@ -20,7 +20,7 @@ def Count_Strains(model):
     count = {}
     for agent in model.schedule.agents:
         for virus in agent.viruses:
-            name = "H"+str(virus[0]+1)+"N"+str(virus[1]+1)
+            name = """agent.species + ": " + """ "H"+str(virus[0]+1)+"N"+str(virus[1]+1)
             count[name] = count.get(name, 0) + 1
     return count
     
@@ -57,11 +57,12 @@ class Host(Agent):
  
     
     def contract_virus(self):
-        contacts = self.contacts
-        for contact in contacts():
+        contacts = self.contacts()
+        for contact in contacts:
             for virus in contact.viruses:
                 if (self.is_infectable_by(virus)):
-                    self.temp_viruses.append(virus)
+                    if (random() <= self.model.infection_rate):
+                        self.temp_viruses.append(virus)
     
     def recombine(self):
         self.viruses = self.viruses.union(set(self.temp_viruses))
@@ -84,8 +85,8 @@ class Host(Agent):
             num_contacts = round(gauss(contact_rate[0], contact_rate[1]))
             if (num_contacts < 0):
                 num_contacts=0
-            contacts = contacts + sample([x for x in self.model.schedule.agents if x.species_id==i], num_contacts)
-
+            samp = sample([x for x in self.model.schedule.agents if x.species_id==i], num_contacts)
+            contacts = contacts + samp
         return contacts
  
  
@@ -106,7 +107,8 @@ class VirusModel(Model):
         self.running = True  # For batch runs
         self.iteration = 0  # The number of timesteps the simulation has run
         self.schedule = StagedActivation(self, ["contract_virus", "recombine"], True, True)  # set schedule
- 
+        self.infection_rate = 0.2 # infection rate
+
         # Population sizes
         self.human_pop_size = init_pop_size[0]
         self.pig_pop_size = init_pop_size[1]
