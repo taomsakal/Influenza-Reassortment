@@ -20,7 +20,7 @@ def Count_Strains(model):
     count = {}
     for agent in model.schedule.agents:
         for virus in agent.viruses:
-            name = """agent.species + ": " + """ "H"+str(virus[0]+1)+"N"+str(virus[1]+1)
+            name = "H"+str(virus[0]+1)+"N"+str(virus[1]+1) #agent.species + ": " +
             count[name] = count.get(name, 0) + 1
     return count
     
@@ -54,7 +54,13 @@ class Host(Agent):
         self.viruses = set()
         if viruses is not None:
             self.viruses.add(viruses)
- 
+    
+    def recovery(self):
+        if (len(self.viruses) > 0):
+            self.viruses = list(self.viruses)
+            self.viruses = [x for x in self.viruses if (random() < 0.65)]
+            self.viruses = set(self.viruses)
+
     
     def contract_virus(self):
         contacts = self.contacts()
@@ -106,7 +112,7 @@ class VirusModel(Model):
         self.run = run
         self.running = True  # For batch runs
         self.iteration = 0  # The number of timesteps the simulation has run
-        self.schedule = StagedActivation(self, ["contract_virus", "recombine"], True, True)  # set schedule
+        self.schedule = StagedActivation(self, ["recovery","contract_virus", "recombine"], True, True)  # set schedule
         self.infection_rate = 0.2 # infection rate
 
         # Population sizes
