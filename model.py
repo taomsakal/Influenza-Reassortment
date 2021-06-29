@@ -58,7 +58,7 @@ class Host(Agent):
     def recovery(self):
         if (len(self.viruses) > 0):
             self.viruses = list(self.viruses)
-            self.viruses = [x for x in self.viruses if (random() < 0.65)]
+            self.viruses = [x for x in self.viruses if (random() < 0.6)]
             self.viruses = set(self.viruses)
 
     
