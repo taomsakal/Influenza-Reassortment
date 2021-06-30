@@ -1,6 +1,8 @@
 library("tidyverse")
 library("gganimate")
 library("ggplot2")
+library("gifski")
+library("png")
 data <- read.csv("data\\data.csv")
 numeric_data <- data[, -c(2:3)]
 y <- filter(numeric_data, Step == 0)
@@ -17,18 +19,20 @@ data1 <- as.data.frame(t(data1))
 rownames(data1)<-c(0:9)
 data1 <- tibble::rownames_to_column(data1, "step")
 long_df <- data1 %>% gather(Key, Value, -step)
-long_df = long_df %>% 
+long_df = long_df %>%
   group_by(step)%>%      
-  mutate(rank = rank(-Value, ties.method = 'first')) %>%
+  mutate(rank = rank(-Value, ties.method = 'first'),
+         label = paste0(" ", Value)) %>%
   group_by(Value)
 print.data.frame(long_df)
 anim = ggplot(data=long_df, mapping=aes(x=rank, group=Key, fill=Key), fill=colnames(data1))+
-        geom_tile(aes(y = (Value/2) + 25,
+        geom_tile(aes(y = (Value/2) + 23,
                       height = Value,
                       width = 0.7)) +
         geom_text(aes(y = 0, label = Key, vjust = 0.2, hjust = 0.5, size = 1, angle = 90)) +
+        geom_text(aes(y = Value, label = label, hjust = -2, size = 1, angle = 90)) +
+        theme_minimal() +
         theme(legend.position = "none",
-              axis.line=element_blank(),
               axis.text.x=element_blank(),
               axis.text.y=element_blank(),
               axis.ticks=element_blank(),
@@ -43,8 +47,6 @@ anim = ggplot(data=long_df, mapping=aes(x=rank, group=Key, fill=Key), fill=colna
               transition_states(step, transition_length = 4, state_length = 1)+
               ease_aes('sine-in-out')
 
-library(gifski)
-library(png)
 animate(anim, nframes = 350,fps = 25,  width = 1200, height = 1000, 
         renderer = gifski_renderer("strains.gif"))
 
