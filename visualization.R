@@ -12,19 +12,14 @@ data1 <- as.data.frame(data1)
 for (i in 1:9) {
     data1 <- rbind(data1, colSums(filter(numeric_data, Step == i)))
 }
-data1 <- as.data.frame(data1[, -1])
-data1 <- as.data.frame(t(data1))
-data1 <- data1[rowSums(data1[])>0,]
-data1 <- as.data.frame(t(data1))
-rownames(data1)<-c(0:9)
-data1 <- tibble::rownames_to_column(data1, "step")
-long_df <- data1 %>% gather(Key, Value, -step)
+data1 <- data1[,colSums(data1)>0]
+print.data.frame(data1)
+long_df <- data1 %>% gather(Key, Value, -Step)
 long_df = long_df %>%
-  group_by(step)%>%      
+  group_by(Step)%>%      
   mutate(rank = rank(-Value, ties.method = 'first'),
          label = paste0(" ", Value)) %>%
   group_by(Value)
-print.data.frame(long_df)
 anim = ggplot(data=long_df, mapping=aes(x=rank, group=Key, fill=Key), fill=colnames(data1))+
         geom_tile(aes(y = (Value/2) + 23,
                       height = Value,
