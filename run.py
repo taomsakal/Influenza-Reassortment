@@ -9,6 +9,9 @@ from mesa.datacollection import DataCollector
 from parameters import infection_table
 from mesa.batchrunner import BatchRunner
 import pandas
+
+import model
+from model import VirusModel
 import matplotlib.pyplot as plt
 
 import model
@@ -21,16 +24,11 @@ variable_params = {"x":[0]}
 batch_run = BatchRunner(VirusModel,
                         fixed_parameters=fixed_params,
                         variable_parameters=variable_params,
-                        iterations=2,
-                        max_steps=25,
+                        iterations=1,
+                        max_steps=10,
                         display_progress=True)
 
 batch_run.run_all()
 
-model_data = batch_run.get_collector_model()
-
-for i in range(0, 24, 5):
-    D = model_data[(0,0)].iloc[i]["Strain_data"]
-    #D = {k:v for k,v in D.items() if "Poultry" in k}
-    plt.bar(*zip(*D.items()))
-    plt.show()
+agent_data = batch_run.get_collector_agents()
+df = agent_data[(0,0)]
