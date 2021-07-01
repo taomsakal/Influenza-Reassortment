@@ -32,8 +32,8 @@ total <- merge(long_df,long_df_2,by=c("Step","Key"))
 print.data.frame(total)
 anim = ggplot(data=total, mapping=aes(x=rank, y=Value, fill=Species, frame = Step))+
         geom_bar(stat = "identity", position = "stack") +
-        geom_text(aes(y = 0, label = Key, vjust = 0, hjust = 1.1, size = 1, angle = 90)) +
-        geom_text(aes(y = as.integer(sub('.', '', label)), label = label, hjust = 0, size = 1, angle = 90)) +
+        geom_text(aes(y = -1, label = Key, vjust = 0.25, hjust = 1, angle = 90, family = "Arial Narrow"), size = 6) +
+        geom_text(aes(y = as.integer(sub('.', '', label)), label = label, hjust = 0, vjust = 0.25, angle = 90, family = "Arial Narrow"), size = 6) +
         labs(y = "Population Infected", x="Steps") +
         ggtitle("Virus Strains Over Time") +
         guides(size = FALSE) +
@@ -41,23 +41,24 @@ anim = ggplot(data=total, mapping=aes(x=rank, y=Value, fill=Species, frame = Ste
               legend.key.size = unit(1, 'cm'), #change legend key size
               legend.key.height = unit(1, 'cm'), #change legend key height
               legend.key.width = unit(1, 'cm'), #change legend key width
-              legend.title = element_text(size=16, family = "Rockwell"), #change legend title font size
-              legend.text = element_text(size=14, family = "Rockwell Condensed"),
+              legend.title = element_text(size=16, family = "Franklin Gothic Demi"), #change legend title font size
+              legend.text = element_text(size=14, family = "Franklin Gothic Demi Cond"),
               axis.text.x=element_blank(),
               axis.text.y=element_blank(),
               axis.ticks=element_blank(),
-              axis.title.y=element_text(vjust=-7, hjust=0.5, size=25, family = "Rockwell Condensed"),
-              axis.title.x=element_text(vjust=1, hjust=0.5, size=25, family = "Rockwell Condensed"),
+              axis.title.y=element_text(vjust=-7, hjust=0.5, size=25, family = "Franklin Gothic Demi Cond"),
+              axis.title.x=element_text(vjust=5, hjust=0.5, size=25, family = "Franklin Gothic Demi Cond"),
               panel.background=element_blank(),
               panel.border=element_blank(),
-              plot.title = element_text(size=50, vjust=-2, hjust=0.5, family = "Rockwell Extra Bold"),
+              plot.title = element_text(size=50, vjust=-2, hjust=0.5, family = "Franklin Gothic Heavy"),
               plot.background=element_blank(),
               panel.grid.major=element_blank(),
               panel.grid.minor=element_blank(),
               plot.margin = margin(0, 0, 0, 0, "mm")) +
+              scale_y_continuous(expand = c(.1, .1)) +
         transition_states(Step, transition_length = 1, state_length = 1) +
         ease_aes('sine-in-out')
 
-animate(anim, nframes = 600,fps = 40,  width = 1200, height = 850, 
+animate(anim, nframes = 525,fps = 35,  width = 1200, height = 900, 
         renderer = gifski_renderer("animated_bar.gif"))
 
