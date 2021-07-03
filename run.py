@@ -15,20 +15,22 @@ from model import VirusModel
 import matplotlib.pyplot as plt
 
 import model
-from model import VirusModel, Count_Strains
+from model import VirusModel
 
 fixed_params = {"run": "NA",
-               "init_pop_size": [50, 250, 100, 200]}
+               "init_pop_size": [700, 200, 500, 1000]}
 variable_params = {"x":[0]}
 
 batch_run = BatchRunner(VirusModel,
                         fixed_parameters=fixed_params,
                         variable_parameters=variable_params,
                         iterations=1,
-                        max_steps=10,
+                        max_steps=30,
                         display_progress=True)
 
 batch_run.run_all()
 
 agent_data = batch_run.get_collector_agents()
 df = agent_data[(0,0)]
+
+df.to_csv("data.csv")
