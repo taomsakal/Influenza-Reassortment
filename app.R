@@ -10,7 +10,7 @@ library(Cairo)
 options(shiny.usecairo=TRUE)
 
 #data preprocessing
-data <- read.csv("data\\data3.csv")
+data <- read.csv("data\\data4.csv")
 y <- data[,-2]
 z <- y[,-2]
 data1 <- y %>% 
@@ -23,8 +23,8 @@ data1 <- as.data.frame(data1)
 data2 <- as.data.frame(data2)
 data1 <- data1[, colSums(data1 != 0) > 0]
 data2 <- data2[, colSums(data2 != 0) > 0]
-data1[,1] = rep(0:29, each=4)
-data2[,1] = c(0:29)
+data1[,1] = rep(0:49, each=4)
+data2[,1] = c(0:49)
 long_df <- data1 %>% gather(Key, Value, -Step, -Species)
 long_df_2 <- data2 %>% gather(Key, Value, -Step)
 long_df_2 = long_df_2 %>%
@@ -32,18 +32,15 @@ long_df_2 = long_df_2 %>%
   mutate(rank = rank(-Value, ties.method = 'first'), #row_number(),
          label = Value)
 long_df_2 = long_df_2[,-3]
-print(long_df)
-print(long_df_2)
 total <- merge(long_df,long_df_2,by=c("Step","Key"))
 
-
-print.data.frame(total)
 #Shiny App
+
 #UI
 ui <- fluidPage(
-  withAnim(),
   mainPanel(plotlyOutput("plot2")))
 
+#Server
 server <- function(input,output, session){
   output$plot2<-renderPlotly({
     data <- total
@@ -62,4 +59,5 @@ server <- function(input,output, session){
     })
 }
 
+#Launch
 shinyApp(ui=ui, server=server)

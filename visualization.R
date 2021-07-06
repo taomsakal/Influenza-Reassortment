@@ -63,4 +63,3 @@ anim = ggplot(data=total, mapping=aes(x=rank, y=Value, fill=Species, frame = Ste
 
 animate(anim, nframes = 10,fps = 1,  width = 1200, height = 900, 
         renderer = gifski_renderer("animated_bar.gif"))
-'
