@@ -1,16 +1,13 @@
 # imports
 library("tidyverse")
 library("ggplot2")
-library("gifski")
-library("extrafont")
 library("shiny")
 library("plotly")
-loadfonts(device = "win")
 library(Cairo)
 options(shiny.usecairo=TRUE)
 
 #data preprocessing
-data <- read.csv("data\\data4.csv")
+data <- read.csv("data\\data.csv")
 y <- data[,-2]
 z <- y[,-2]
 data1 <- y %>% 
@@ -23,8 +20,8 @@ data1 <- as.data.frame(data1)
 data2 <- as.data.frame(data2)
 data1 <- data1[, colSums(data1 != 0) > 0]
 data2 <- data2[, colSums(data2 != 0) > 0]
-data1[,1] = rep(0:49, each=4)
-data2[,1] = c(0:49)
+data1[,1] = rep(0:99, each=4)
+data2[,1] = c(0:99)
 long_df <- data1 %>% gather(Key, Value, -Step, -Species)
 long_df_2 <- data2 %>% gather(Key, Value, -Step)
 long_df_2 = long_df_2 %>%
