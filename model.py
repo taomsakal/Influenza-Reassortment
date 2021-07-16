@@ -2,23 +2,19 @@
 The agent and simulation class live here.
 """
  
-import random
 from random import *
-from sys import implementation
 import numpy as np
 import itertools
 from mesa import Agent, Model
-from mesa.time import SimultaneousActivation, StagedActivation
+from mesa.time import StagedActivation
 from mesa.datacollection import DataCollector
 from parameters import infection_table
 from parameters import viruses as all_viruses
-from mesa.batchrunner import BatchRunner
-import pandas
 import json
 
  
 class Host(Agent):
- 
+  
     def __init__(self, model, species, viruses=None):
         """
         Creates a new host organism
@@ -43,19 +39,14 @@ class Host(Agent):
         # Right now the viruses that a host has are listed in a set.
         # todo: We'll explore using a matrix to store this info later to avoid loops.
         self.viruses = set()
+        self.time_since_infection = 0
         if viruses is not None:
             self.viruses.add(viruses)
+        self.h_immune = set()
+        self.n_immune = set()
         
         for i in all_viruses:
-            exec("%s = %d" % ("self."+"H"+str(i[0]+1)+"N"+str(i[1]+1), int(i in self.viruses)))
-    
-    def recovery(self):
-        if (len(self.viruses) > 0):
-            self.viruses = list(self.viruses)
-            self.viruses = [x for x in self.viruses if (randint(0,9) < 6)]
-            self.viruses = set(self.viruses)
-        for i in all_viruses:
-            exec("%s = %d" % ("self."+"H"+str(i[0]+1)+"N"+str(i[1]+1), int(i in self.viruses)))
+            exec("%s = %d" % ("self." + f"H{i[0]+1}N{i[1]+1}", int(i in self.viruses)))
     
     def contract_virus(self):
         contacts = self.contacts()
@@ -63,7 +54,12 @@ class Host(Agent):
         for contact in contacts:
             for virus in contact.viruses:
                 if (self.is_infectable_by(virus)):
-                    if (randint(0,9) <= self.model.infection_rate): #
+                    self.infection_rate = self.model.infection_rate
+                    if (virus[0] in self.h_immune):
+                        self.infection_rate = self.infection_rate * 0.5
+                    if (virus[1] in self.n_immune):
+                        self.infection_rate = self.infection_rate * 0.5
+                    if (rand.random() <= self.infection_rate): #
                         self.temp_viruses.append(virus)
     
     def recombine(self):
@@ -71,8 +67,33 @@ class Host(Agent):
         self.h = [item[0] for item in self.viruses]
         self.n = [item[1] for item in self.viruses]
         self.viruses= set([tuple(x) for x in itertools.product(self.h,self.n) if self.is_infectable_by(x)])
+
+    def recovery(self):
+        if (len(self.viruses) > 0):
+            self.time_since_infection = self.time_since_infection+1
+            self.recovery_chance = 0.55 * 0.95**(len(self.viruses)-1) * 1.3**(self.time_since_infection-1)
+            if (rand.random() <= self.recovery_chance):
+              self.time_since_infection = 0
+              self.h_immune = self.h_immune.union(set([item[0] for item in self.viruses]))
+              self.n_immune = self.n_immune.union(set([item[1] for item in self.viruses]))
+              self.viruses= set()
+
+        if (len(self.h_immune)>0):
+            self.h_immune = set([i for i in self.h_immune if (randint(0,19) < 18)])
+
+        if (len(self.n_immune)>0):
+            self.n_immune = set([i for i in self.n_immune if (randint(0,19) < 18)])
+
+        for i in all_viruses:
+            exec("%s = %d" % ("self."+ f"H{i[0]+1}N{i[1]+1}", int(i in self.viruses)))
     
-    # todo: def birth_death()
+    def birth_death(self):
+        if (randint(0,19) > 16):
+            host = Host(self.model, self.species)
+            self.model.schedule.add(host)
+        if (rand.random() < (0.1 * 1.2**len(self.viruses))):
+            self.model.schedule.remove(self)
+            self.viruses = set()
 
     def is_infectable_by(self, virus):
         """Returns true if the virus can infect the host."""
@@ -82,10 +103,10 @@ class Host(Agent):
         contacts = []
         """Returns a list of other organism the host has contacted and got viruses from."""
         for i in range(4): 
-            contact_rate = self.model.contact_rates[self.species_id][i]
-            num_contacts = round(gauss(contact_rate[0], contact_rate[1]))
-            if (num_contacts < 0):
-                num_contacts=0
+            #contact_rate = self.model.contact_rates[self.species_id][i]
+            num_contacts = int(self.model.contact_rates[self.species_id][i][0])
+            #if (num_contacts < 0):
+            #    num_contacts=0
             samp = sample([x for x in self.model.schedule.agents if x.species_id==i], num_contacts)
             contacts = contacts + samp
         return contacts
@@ -93,9 +114,8 @@ class Host(Agent):
  
 class VirusModel(Model):
  
-    def __init__(self, run="NA", init_pop_size=[100, 500, 200, 400], x=0):
+    def __init__(self, run="NA", init_pop_size=[700, 200, 500, 1000], x=0):
         """
- 
         Args:
             run:
             init_pop_size: The initial population size of each species [Humans, Pigs, Birds, Poultry]
@@ -107,8 +127,8 @@ class VirusModel(Model):
         self.run = run
         self.running = True  # For batch runs
         self.iteration = 0  # The number of timesteps the simulation has run
-        self.schedule = StagedActivation(self, ["contract_virus", "recombine", "recovery"], True, True)  # set schedule
-        self.infection_rate = 2 # infection rate
+        self.schedule = StagedActivation(self, ["contract_virus", "recombine", "recovery", "birth_death"], True, True)  # set schedule
+        self.infection_rate = 0.11 # infection rate
 
         # Population sizes
         self.human_pop_size = init_pop_size[0]
@@ -123,33 +143,33 @@ class VirusModel(Model):
         # 3 -> poultry
         # 4 -> wild birds
         # todo: put more reasonable values and sd
-        self.contact_rates = np.array([[[5,1], [3,0.5], [2,0.5], [3,0.5]],
-                                       [[3,0.5], [20,1], [3,0.5], [5,0.5]],
-                                       [[2,0.5], [3,0.5], [10,1], [8,0.5]],
-                                       [[3,0.5], [5,0.5], [8,0.5], [15,1]]])
+        self.contact_rates = np.array([[[5], [3], [3], [1]],
+                                       [[1], [10], [1], [2]],
+                                       [[3], [1], [20], [3]],
+                                       [[1], [3], [3], [15]]])
  
         # initialize population
         init_virus = None
         for i in range(self.human_pop_size):
-            if (randint(0,30) == 30):
+            if (randint(0,44) == 0):
                 init_virus = choice([(0,0),(1,1),(2,1),(4,0),(6,1),(6,2),(6,6),(8,1),(9,6)])
             host = Host(self, "Human", init_virus)
             self.schedule.add(host)
             init_virus = None
         for i in range(self.pig_pop_size):
-            if (randint(0,30) == 30):
+            if (randint(0,44) == 0):
                 init_virus = choice([(0,0),(0,1),(1,2),(2,1),(2,2),(3,5),(4,1),(8,1)])
             host = Host(self, "Pig",init_virus)
             self.schedule.add(host)
             init_virus = None
         for i in range(self.bird_pop_size):
-            if (randint(0,30) == 30):
+            if (randint(0,44) == 0):
                 init_virus = (randint(0,15), randint(0,8))
             host = Host(self, "Bird", init_virus)
             self.schedule.add(host)
             init_virus = None
         for i in range(self.poultry_pop_size):
-            if (randint(0,30) == 30):
+            if (randint(0,44) == 0):
                 init_virus = (randint(0,12), randint(0,8))
             host = Host(self, "Poultry", init_virus)
             self.schedule.add(host)
@@ -158,7 +178,7 @@ class VirusModel(Model):
 
         reporters = "{\"Species\":\"species\","
         for i in all_viruses:
-            name = "H"+str(i[0]+1)+"N"+str(i[1]+1)
+            name = f"H{i[0]+1}N{i[1]+1}"
             reporters = reporters + "\"" + name + "\"" + ":" + "\"" + name + "\"" + ","
         reporters = reporters[:-1] + "}"
         self.datacollector = DataCollector(
@@ -172,8 +192,6 @@ class VirusModel(Model):
         self.iteration += 1
         self.datacollector.collect(self)
         self.schedule.step()  # step all agents
- 
-        # todo: add data gathering
  
  
 if __name__ == '__main__':
