@@ -4,83 +4,134 @@ library("ggplot2")
 library("plotly")
 library("corrplot")
 library("Hmisc")
-library("ggcorrplot")
+library("igraph")
+library("ggraph")
+library("Rcpp")
+library("cowplot")
 
-data <- read.csv("data\\full_data.csv")[,-2]
+data <- read.csv("data\\data9.csv")
 print.data.frame(data)
-data <- data %>% 
-  group_by(Iteration) %>% 
-  summarise(across(everything(), mean))
-data[] <- lapply(data, function(x) ifelse(x > 1 , 1 , 0 ))
-data <- as.data.frame(colSums(data))
-colnames(data) <- c("Value")
-ggplot(data, aes(x=row.names(data), y=Value)) +
-  geom_bar(stat="identity")
 
+#making barplot
+data_bar <- data[data$Iteration == 0,]
+data_bar
+data_bar <- data_bar[,-2]
 
+data_bar <- data_bar %>% 
+  group_by(Step) %>% 
+  summarise(across(everything(), sum))
+data_bar <- data_bar[, colSums(data_bar != 0) > 0]
+data_bar
+long_df <- data_bar %>% gather(Key, Value, -Step, -Species)
+long_df
+total <- long_df[long_df$Step == 375,]
+ggplot(data=total, mapping=aes(x=Key, y=Value, fill=Species))+
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(y = -1, label = Key, vjust = 0.05, hjust = 0.87, angle = 90), size = 2.5) +
+  labs(y = "Population Infected", x="Steps") +
+  ggtitle("Step 350: Virus Strains") +
+  theme(legend.position = c(0.9, 0.8),
+        legend.key.size = unit(0.5, "cm"), #change legend key size
+        legend.key.height = unit(0.5, "cm"), #change legend key height
+        legend.key.width = unit(0.5, "cm"), #change legend key width
+        legend.title = element_text(size=10), #change legend title font size
+        legend.text = element_text(size=6),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.y=element_text(vjust=-7, hjust=0.5, size=10),
+        axis.title.x=element_text(vjust=2, hjust=0.5, size=10),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        plot.title = element_text(size=20, vjust=-2, hjust=0.5),
+        plot.background=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.margin = margin(0, 0, 0, 0, "mm"))+
+        scale_y_continuous(expand = c(.1, .1))
+
+#makign correlation matrices
+data <- read.csv("data\\data9.csv")
+#data <- data[data$Species == "Human",]
+data <- data[,-3]
 data <- data %>% 
   group_by(Step, Iteration) %>% 
   summarise(across(everything(), sum))
+
+data <- data[data$Step > 220,]
+data <- data[,colSums(data!= 0) > 0]
+data <- data[,-1]
+data <- data[,-1]
+
 data0 <- data[data$Iteration == 0,]
-data1 <- data[data$Iteration == 1,]
+data <- data[data$Step > 250,]
 data0 <- data0[,-1]
 data0 <- data0[,-1]
-data1 <- data1[,-1]
-data1 <- data1[,-1]
 data0 = data0[, colMeans(data0) > 1]
-data1 = data1[, colMeans(data1) > 1]
 
-res <- round(cor(data0),2)
-print(res)
-res[,order(colnames(res))]
+res <- cor(as.matrix(data))
+corrplot(res,order = 'alphabet', method = 'color', type='upper',tl.cex=0.6)
 
-corrplot(res, method = "color", type = "upper",
-     tl.cex=0.43, order = 'alphabet', tl.col = "black")
-
-res2 <- rcorr(as.matrix(data0))
-
-flattenCorrMatrix <- function(cormat, pmat) {
+flattenCorrMatrix <- function(cormat) {
   ut <- upper.tri(cormat)
   data.frame(
     row = rownames(cormat)[row(cormat)[ut]],
     column = rownames(cormat)[col(cormat)[ut]],
-    cor  =(cormat)[ut],
-    p = pmat[ut]
+    cor  = (cormat[ut])
   )
 }
 
-res3 <- flattenCorrMatrix(res2$r, res2$P)
+res3 <- flattenCorrMatrix(res)
 res3[order(-res3$cor),]
 print(tibble(data0[,"H1N3"]), n=50)
 
+#Makign Adjacency Networks
+
+res[ res < 0.8 ] <- 0
+diag(res) <- 0
+graph <- graph.adjacency(mode = "undirected", res, weighted=TRUE)
+V(graph)$name <- colnames(res)
+Isolated = which(degree(graph)==0)
+graph = delete.vertices(graph, Isolated)
+l <- layout.fruchterman.reingold(graph, niter=5000, area=vcount(graph)^4*10)
+l2 <- 100*layout_with_fr(graph)
 
 
-corr_simple <- function(data=df,sig=0.4){
-  #convert data to numeric in order to run correlations
-  #convert to factor first to keep the integrity of the data - each value will become a number rather than turn into NA
-  df_cor <- data %>% mutate_if(is.character, as.factor)
-  df_cor <- df_cor %>% mutate_if(is.factor, as.numeric)
-  #run a correlation and drop the insignificant ones
-  corr <- cor(df_cor)
-  #prepare to drop duplicates and correlations of 1     
-  corr[lower.tri(corr,diag=TRUE)] <- NA 
-  #drop perfect correlations
-  corr[corr == 1] <- NA
-  #turn into a 3-column table
-  corr <- as.data.frame(as.table(corr))
-  #remove the NA values from above 
-  corr <- na.omit(corr) 
-  #select significant values  
-  corr <- subset(corr, abs(Freq) > sig) 
-  #sort by highest correlation
-  corr <- corr[order(-abs(corr$Freq)),] 
-  #print table
-  print(corr)
-  #turn corr back into matrix in order to plot with corrplot
-  mtx_corr <- reshape2::acast(corr, Var1~Var2, value.var="Freq")
-  print(mtx_corr)
-  #plot correlations visually
-  corrplot(mtx_corr, is.corr=FALSE, tl.col="black", na.label=" ", tl.cex = 0.6, method = "square")
-}
-corr_simple(data0)
-corr_simple(data1)
+gg = ggraph(graph, layout=l) + 
+  geom_edge_link(color="gray50", width=0.6) +
+  geom_node_point(color="black") +
+  geom_node_text(aes(label = name), size=2, repel = TRUE)
+
+pdf("plot.pdf", 5, 2.5)
+#corrplot(res,order = 'alphabet', method = 'color', type='upper',tl.cex=0.6)
+plot(gg)
+dev.off()
+
+#boxplots
+data <- read.csv("data\\full_data.csv")
+print.data.frame(data)
+data_bar <- data[data$Iteration == 0,]
+data_bar <- data_bar[,-2] #or-3
+data_bar <- data_bar %>% 
+  group_by(Step, Species) %>% 
+  summarise(across(everything(), sum))
+data_bar <- data_bar[, colSums(data_bar != 0) > 0]
+data_bar
+long_df <- data_bar %>% gather(Key, Value, -Step, -Species)
+plot1 <- ggplot(data = long_df[which(long_df$Value>0),], aes(x=Species, y=Value)) + 
+  geom_boxplot(aes(fill=Species)) +
+  scale_fill_grey() + theme_classic() + theme(legend.position = "none", text=element_text(family="Times New Roman", size=11)) +
+  ylab("Number of Individuals a Strain Infects")
+
+long_df_2 <- long_df %>% 
+  group_by(Step, Species) %>% 
+  summarise(counts = sum(Value > 0, na.rm = TRUE))
+long_df_2
+plot2 <- ggplot(data = long_df_2, aes(x=Species, y=counts)) + 
+  geom_boxplot(aes(fill=Species)) +
+  scale_fill_grey() + theme_classic() + theme(legend.position = "none", text=element_text(family="Times New Roman", size=11)) +
+  ylab("Number of Strains in circulation")
+
+png("boxplot.png", 7, 4, units = 'in', res = 300,)
+plot_grid(plot1, plot2, labels = "AUTO")
+dev.off()
