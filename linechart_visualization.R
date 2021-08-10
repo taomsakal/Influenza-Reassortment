@@ -4,35 +4,42 @@ library("gganimate")
 library("ggplot2")
 library("gifski")
 library("extrafont")
-loadfonts(device = "win")
-
+library("grid")
+library("ggalt")
+font_import()
+library(extrafont)
+loadfonts(device="win")  
+windowsFonts(x=windowsFont("Times New Roman"))
 #data preprocessing
-data <- read.csv("data\\data4.csv")
-y <- data[,-2]
-z <- y[,-2]
-data1 <- y %>% 
-  group_by(Step, Species) %>% 
-  summarise(across(everything(), sum))
-data2 <- z %>% 
+data <- read.csv("data\\data9.csv")
+print.data.frame(data)
+
+data_bar <- data[data$Iteration == 0,]
+data_bar <- data[data$Step > 20,]
+data_bar <- data_bar[,-2]
+data_bar <- data_bar[,-2]
+data_bar <- data_bar %>% 
   group_by(Step) %>% 
   summarise(across(everything(), sum))
-data1 <- as.data.frame(data1)
-data2 <- as.data.frame(data2)
-data1 <- data1[, colSums(data1 != 0) > 0]
-data2 <- data2[, colSums(data2 != 0) > 0]
-data1[,1] = rep(0:119, each=4)
-data2[,1] = c(0:119)
-long_df <- data1 %>% gather(Key, Value, -Step, -Species)
-long_df_2 <- data2 %>% gather(Key, Value, -Step)
-long_df_2 = long_df_2 %>%
-  group_by(Step)%>%      
-  mutate(rank = rank(-Value, ties.method = 'first'), #row_number(),
-         label = paste0(" ", Value)) %>%
-  group_by(Value)
-long_df_2 = long_df_2[,-3]
-total <- merge(long_df,long_df_2,by=c("Step","Key"))
+data_bar
+data_bar <- data_bar[, colMeans(data_bar) > 35]
+long_df <- data_bar %>% gather(Key, Value, -Step)
+long_df
+total
 
-plot = ggplot(data=total, aes(x=Step, y=Value, group = Key, colour = Key)) +
-  geom_line() +
-  theme(legend.position = "none")
-print(plot)
+plot = ggplot(data=long_df, aes(x=Step, y=Value, group = Key, color=Key)) +
+  geom_xspline(spline_shape=2, size=0.75) +
+  scale_colour_grey(start = 0.3, end = .75) + 
+  theme_classic() + 
+  ylab(label = "Individuals Infected") + 
+  guides(color=guide_legend(title="Strains")) +
+  theme(plot.margin = unit(c(1,3,1,1), "lines"),  text=element_text(family="Times New Roman", size=12), legend.position = "none")
+#geom_text(data = subset(long_df, Step == 400), aes(label = Key, colour = Key, x = Inf, y = Value), hjust = -.1, size=2.5) +
+
+gt <- ggplotGrob(plot)
+gt$layout$clip[gt$layout$name == "panel"] <- "off"
+
+png("lineplot.png", 7, 4, units = 'in', res = 300,)
+grid.draw(gt)
+dev.off()
+
