@@ -3,7 +3,6 @@ The agent and simulation class live here.
 """
  
 import random as rand
-from random import *
 import numpy as np
 import itertools
 from mesa import Agent, Model
@@ -14,8 +13,11 @@ from parameters import viruses as all_viruses
 import json
 import math
 
+rng = np.random.default_rng(seed=2021)
+
+
 species_infected = np.sum(infection_table,axis = 0) 
-fitness = (np.ones((16,9))/species_infected) * np.random.normal(1, 0.2, (16,9))
+fitness = (np.ones((16,9))/species_infected) * rng.normal(1, 0.2, (16,9))
 class Host(Agent):
   
     def __init__(self, model, species, viruses=None, immune_virus=None):
@@ -26,11 +28,13 @@ class Host(Agent):
             species: The species the host is. Either "Human", "Pig", "Bird", or "Poultry".
             viruses: The set of viruses currently infecting the host.
         """
+        
+        self.rng = np.random.default_rng(seed=2021)
         self.id = model.next_id()
         super().__init__(self.id, model)  # Initialize basic agent code, assign a unique id
         self.model = model
         self.it = self.model.it #sets iteration form model
-
+        self.virus = viruses
         self.species = species
         assert species in ["Human", "Pig", "Bird", "Poultry"]
  
@@ -39,20 +43,21 @@ class Host(Agent):
 
         #holder for viruses after contact before all individuals have contacted each other
         self.temp_viruses = set()
-
+        self.viruses = set()
         # Right now the viruses that a host has are listed in a set.
         # todo: We'll explore using a matrix to store this info later to avoid loops.
-        self.viruses = set()
         self.time_since_infection = 0 # used to measure the time since infection and affects recovery chance
-        if ((viruses is not None) and self.is_infectable_by(viruses)):
-            self.viruses.add(viruses)
+        if ((self.virus is not None) and self.is_infectable_by(self.virus)):
+            self.viruses.add(self.virus)
+        else:
+          self.viruses = set()
         
         # holds the antigens that the viruses are immune to
         self.h_immune = set()
         self.n_immune = set()
         if ((immune_virus is not None) and self.is_infectable_by(immune_virus)):
             self.h_immune.add(immune_virus[0])
-            self.h_immune.add(immune_virus[1])
+            self.n_immune.add(immune_virus[1])
         
         #sets variables for agent reporters to measure each virus
         for i in all_viruses:
@@ -93,7 +98,7 @@ class Host(Agent):
                     elif (virus[1] in contact.n_immune):
                         self.infection_rate = self.infection_rate * self.model.cross_immunity_effect
                     
-                    if (np.random.rand(1,1)[0,0] < self.infection_rate): #
+                    if (self.rng.random(1)[0] < self.infection_rate): #
                         contact.temp_viruses.add(virus)
     
     
@@ -124,7 +129,7 @@ class Host(Agent):
             self.recovery_chance = self.model.recovery_rate * (self.time_since_infection) 
 
             #removes viruses and adds immunity if the host recovers
-            if (np.random.rand(1,1)[0,0] <= self.recovery_chance):
+            if (self.rng.random(1)[0] <= self.recovery_chance):
               self.time_since_infection = 0
               self.h_immune = self.h_immune.union({item[0] for item in self.viruses})
               self.n_immune = self.n_immune.union({item[1] for item in self.viruses})
@@ -132,10 +137,10 @@ class Host(Agent):
 
         #Chance of losing immunity (mimics Antigenic Drift)
         if (len(self.h_immune)>0):
-            self.h_immune = set([i for i in self.h_immune if (np.random.rand(1,1)[0,0] < self.model.mutation_rate)]) #0.95
+            self.h_immune = set([i for i in self.h_immune if (self.rng.random(1)[0] < self.model.mutation_rate)]) #0.95
 
         if (len(self.n_immune)>0):
-            self.n_immune = set([i for i in self.n_immune if (np.random.rand(1,1)[0,0] < self.model.mutation_rate)]) #0.95
+            self.n_immune = set([i for i in self.n_immune if (self.rng.random(1)[0] < self.model.mutation_rate)]) #0.95
         
         #sets agent reporters for datacollector
         for i in all_viruses:
@@ -152,13 +157,13 @@ class Host(Agent):
         """
 
         #chance of birth
-        if (np.random.rand(1,1)[0,0] < self.model.birth_rate):
+        if (self.rng.random(1)[0] < self.model.birth_rate):
             init_virus = None        
             immune_virus = None
-            if (rand.random() < self.model.immigration_rate):
-                init_virus = (randint(0,15), randint(0,8))
-            if (rand.random() < self.model.immigration_rate):
-                immune_virus = (randint(0,15), randint(0,8))  
+            if (self.rng.rand() < self.model.immigration_rate):
+                init_virus = (self.rng.integers(0,16), self.rng.integers(0,9))
+            if (self.rng.rand() < self.model.immigration_rate):
+                immune_virus = (self.rng.integers(0,16), self.rng.integers(0,9))  
             if (self.species_id == 0):
               host = Host(self.model, self.species, init_virus, immune_virus)
               self.model.hosts_0.append( host )
@@ -184,7 +189,7 @@ class Host(Agent):
               mortality = 1.005
         
         #Chance of death increases with number of viruses the host is infected by
-        if (np.random.rand(1,1)[0,0] < self.model.death_rate*(mortality**len(self.viruses))):
+        if (self.rng.random(1)[0] < self.model.death_rate*(mortality**len(self.viruses))):
             if (self.species_id == 0):
               self.model.hosts_0.remove( self )
             elif (self.species_id == 1):
@@ -201,36 +206,37 @@ class Host(Agent):
         """Returns a list of other organism the host has contacted and got viruses from."""
         contacts = []
         num_contacts = int(len(self.model.hosts_0) * self.model.contact_rates[self.species_id][0][0])
-        samp = rand.sample(self.model.hosts_0, num_contacts)
+        samp = list(self.rng.choice(self.model.hosts_0, num_contacts))
         contacts = contacts + samp
         num_contacts = int(len(self.model.hosts_1) * self.model.contact_rates[self.species_id][1][0])
-        samp = rand.sample(self.model.hosts_1, num_contacts)
+        samp = list(self.rng.choice(self.model.hosts_1, num_contacts))
         contacts = contacts + samp
         num_contacts = int(len(self.model.hosts_2) * self.model.contact_rates[self.species_id][2][0])
-        samp = rand.sample(self.model.hosts_2, num_contacts)
+        samp = list(self.rng.choice(self.model.hosts_2, num_contacts))
         contacts = contacts + samp
         num_contacts = int(len(self.model.hosts_3) * self.model.contact_rates[self.species_id][3][0])
-        samp = rand.sample(self.model.hosts_3, num_contacts)
+        samp = list(self.rng.choice(self.model.hosts_3, num_contacts))
         contacts = contacts + samp
         return contacts
  
  
 class VirusModel(Model):
  
-    def __init__(self, run="NA", init_pop_size=[900, 650, 1000, 750], it=0, infection_rate= 0.22, recovery_rate = 0.2, mutation_rate = 0.96, birth_rate = 0.04, death_rate = 0.039, cross_immunity_effect = 0.05, init_viruses=None, immigration_rate=0.9, contact_rates = None, fitness_on=True, seasonal_on = True, period=100, amplitude=0.8):
+    def __init__(self, run="NA", init_pop_size=[900, 650, 1000, 750], it=0, infection_rate= 0.25, recovery_rate = 0.1, mutation_rate = 0.95, birth_rate = 0.04, death_rate = 0.039, cross_immunity_effect = 0.05, init_viruses=None, immigration_rate=0.09, contact_rates = None, fitness_on=True, seasonal_on = True, period=100, amplitude=0.8):
         """
         Args:
             init_pop_size: The initial population size of each species [Humans, Pigs, Birds, Poultry]
             x: Batch runner throws an error without a dummy variable to use as a variable parameter, therefore this variable acts as a dummy
             it: Iteration number
         """
- 
+
+        rng = np.random.default_rng(seed=2021)
         super().__init__()  # Initialize basic agent code, assign a unique id
         self.it = it
         self.run = run
         self.running = True  # For batch runs
         self.iteration = 0  # The number of timesteps the simulation has run
-        self.schedule = StagedActivation(self, ["contract_virus", "recombine", "recovery", "birth_death"], True, True)  # set schedule 
+        self.schedule = StagedActivation(self, ["contract_virus", "recombine", "recovery", "birth_death"], False, False)  # set schedule 
         self.infection_rate = infection_rate # infection rate
         self.recovery_rate = recovery_rate
         self.mutation_rate = mutation_rate
@@ -288,14 +294,14 @@ class VirusModel(Model):
             #  init_virus = self.all_viruses[int(id/30) % len(self.all_viruses)]
             #id = id +1
             
-            if (randint(0,25) == 0):
+            if (rng.integers(0,26) == 0):
                 if (self.init_viruses == None):
-                  init_virus = choice([(0,0),(1,1),(2,1),(4,0),(6,1),(6,2),(6,6),(8,1),(9,6)])
+                  init_virus = rng.choice([(0,0),(1,1),(2,1),(4,0),(6,1),(6,2),(6,6),(8,1),(9,6)],1)[0]
                 else:
-                  init_virus = choice(init_viruses)
+                  init_virus = init_viruses[rng.integers(0,len(init_viruses))]
 
-            if (randint(0,5) == 0):
-                immune_virus = choice([(0,0),(1,1),(2,1),(4,0),(6,1),(6,2),(6,6),(8,1),(9,6)])
+            if (rng.integers(0,6) == 0):
+                immune_virus = rng.choice([(0,0),(1,1),(2,1),(4,0),(6,1),(6,2),(6,6),(8,1),(9,6)],1)[0]
             
             host = Host(self, "Human", init_virus, immune_virus)
             self.schedule.add(host)
@@ -307,14 +313,13 @@ class VirusModel(Model):
             #  init_virus = self.all_viruses[int(id/30) % len(self.all_viruses)]
             #id = id +1
 
-            if (randint(0,25) == 0):
+            if (rng.integers(0,21) == 0):
               if (self.init_viruses == None):
-                init_virus = choice([(0,0),(0,1),(1,2),(2,1),(2,2),(3,5),(4,1),(8,1)])
+                init_virus = rng.choice([(0,0),(0,1),(1,2),(2,1),(2,2),(3,5),(4,1),(8,1)],1)[0]
               else:
-                init_virus = choice(init_viruses)
-            
-            if (randint(0,5) == 0):
-                immune_virus = choice([(0,0),(0,1),(1,2),(2,1),(2,2),(3,5),(4,1),(8,1)])
+                init_virus = init_viruses[rng.integers(0,len(init_viruses))]
+            if (rng.integers(0,6) == 0):
+                immune_virus = rng.choice([(0,0),(0,1),(1,2),(2,1),(2,2),(3,5),(4,1),(8,1)],1)[0]
             host = Host(self, "Pig",init_virus, immune_virus)
             self.schedule.add(host)
             init_virus = None
@@ -324,13 +329,12 @@ class VirusModel(Model):
             #if (id % 20== 0):
             #  init_virus = self.all_viruses[int(id/20) % len(self.all_viruses)]
             #id = id +1
-            if (randint(0,9) == 0):
+            if (rng.integers(0,21) == 0):
               if (self.init_viruses == None):
-                init_virus = (randint(0,15), randint(0,8))
+                init_virus = (rng.integers(0,16), rng.integers(0,9))
               else:
-                init_virus = choice(init_viruses)
-              
-            immune_virus = (randint(0,15), randint(0,8))
+                init_virus = init_viruses[rng.integers(0,len(init_viruses))]
+            immune_virus = (rng.integers(0,16), rng.integers(0,9))
             host = Host(self, "Bird", init_virus, immune_virus)
             self.schedule.add(host)
             init_virus = None
@@ -340,12 +344,12 @@ class VirusModel(Model):
             #if (id % 20 == 0):
             #  init_virus = self.all_viruses[int(id/20) % len(self.all_viruses)]
             #id = id +1
-            if (randint(0,9) == 0):
+            if (rng.integers(0,10) == 0):
               if (self.init_viruses == None):
-                init_virus = (randint(0,12), randint(0,8))
+                init_virus = (rng.integers(0,13), rng.integers(0,9))
               else:
-                init_virus = choice(init_viruses)
-            immune_virus = (randint(0,12), randint(0,8))
+                init_virus = init_viruses[rng.integers(0,len(init_viruses))]
+            immune_virus = (rng.integers(0,13), rng.integers(0,9))
             host = Host(self, "Poultry", init_virus, immune_virus)
             self.schedule.add(host)
             self.hosts_3.append(host)
