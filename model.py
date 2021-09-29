@@ -15,6 +15,7 @@ from mesa.time import StagedActivation
 from parameters import infection_table
 from parameters import viruses as all_viruses
 
+
 species_infected = np.sum(infection_table, axis=0)
 fitness = (np.ones((16, 9)) / species_infected) * np.random.normal(1, 0.2, (16, 9))
 
@@ -30,6 +31,7 @@ class Host(Agent):
             species: The species the host is. Either "Human", "Pig", "Bird", or "Poultry".
             viruses: The set of viruses currently infecting the host.
         """
+
 
         self.id = model.next_id()
         super().__init__(self.id, model)  # Initialize basic agent code, assign a unique id
@@ -57,7 +59,7 @@ class Host(Agent):
         self.n_immune = set()
         if (immune_virus is not None) and self.is_infectable_by(immune_virus):
             self.h_immune.add(immune_virus[0])
-            self.h_immune.add(immune_virus[1])
+            self.n_immune.add(immune_virus[1])
 
         # Dynamically creates variables for agent reporters to measure each virus.
         # For example, self.H1N1 measures the number of H1N1 viruses in a host.
@@ -209,18 +211,23 @@ class Host(Agent):
     def contacts(self):
         """Returns a list of other organism the host has contacted and got viruses from."""
         contacts = []
+        
         num_contacts = int(len(self.model.hosts_0) * self.model.contact_rates[self.species_id][0][0])
         samp = random.sample(self.model.hosts_0, num_contacts)
         contacts = contacts + samp
+        
         num_contacts = int(len(self.model.hosts_1) * self.model.contact_rates[self.species_id][1][0])
         samp = random.sample(self.model.hosts_1, num_contacts)
         contacts = contacts + samp
+        
         num_contacts = int(len(self.model.hosts_2) * self.model.contact_rates[self.species_id][2][0])
         samp = random.sample(self.model.hosts_2, num_contacts)
         contacts = contacts + samp
+        
         num_contacts = int(len(self.model.hosts_3) * self.model.contact_rates[self.species_id][3][0])
         samp = random.sample(self.model.hosts_3, num_contacts)
         contacts = contacts + samp
+        
         return contacts
 
 
@@ -302,6 +309,7 @@ class VirusModel(Model):
         for i in range(self.human_pop_size):
             # if (id % 30== 0):
             #  init_virus = self.all_viruses[int(id/30) % len(self.all_viruses)]
+
             # id = id +1
 
             if random.randint(0, 25) == 0:

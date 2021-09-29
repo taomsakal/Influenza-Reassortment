@@ -8,6 +8,7 @@ from model import VirusModel
 
 
 class TestClass:
+
     def test_recovery(self):
         contactrates = np.array([[[0], [0], [0], [0]],
                                  [[0], [0], [0], [0]],
