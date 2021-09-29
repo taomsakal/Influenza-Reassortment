@@ -15,7 +15,6 @@ from mesa.time import StagedActivation
 from parameters import infection_table
 from parameters import viruses as all_viruses
 
-
 species_infected = np.sum(infection_table, axis=0)
 fitness = (np.ones((16, 9)) / species_infected) * np.random.normal(1, 0.2, (16, 9))
 
@@ -31,7 +30,6 @@ class Host(Agent):
             species: The species the host is. Either "Human", "Pig", "Bird", or "Poultry".
             viruses: The set of viruses currently infecting the host.
         """
-
 
         self.id = model.next_id()
         super().__init__(self.id, model)  # Initialize basic agent code, assign a unique id
@@ -124,6 +122,24 @@ class Host(Agent):
         Agents have a chance of recovery and gain immunity to recovered antigens. Stage 3 of each step.
         """
 
+        """
+        Optimizations:
+        
+        This code is taking almost 40% of the runtime. We can use something like the Gilspie algorithm to fix this.
+        (To do this for recovery we might have to remove the time-dependent recovery, but that's okay.)
+        
+        Instead of each host doing a random role to see if they loose immunity we can use the recovery rate
+        to calculate the expected number of hosts that become immune. Then a draw from a bell curve can give
+        the actual number that become immune. Then we randomly sample that number of hosts and give them immunity.
+        
+        Likewise for antigenic drift we can calculate the expected number of hosts that will loose one antigen. 
+        Take all of those hosts and remove one antigen. We can probably ignore hosts that loose more than one
+        antigen in a single step.
+        
+        Pretty much we move to the model-level the problem of deciding the number of hosts that recovery happens
+        to. Then for that number of hosts we can call the recovery function.  
+        """
+
         # Recovery
         if len(self.viruses) > 0:
 
@@ -210,24 +226,38 @@ class Host(Agent):
 
     def contacts(self):
         """Returns a list of other organism the host has contacted and got viruses from."""
-        contacts = []
+
+        """
+        Optimizations: 
         
+        Make a model-level variable that keeps track of the number of each type of host. Something like 
+        len(self.model.hosts_0) takes a while to count up the length of the list, and we have to do this
+        for each host. Better to update it once each step in a model-level and reference that.
+        
+        Most of the time though is spend on the random.sample function. Not sure how to fix this. 
+        Maybe try the last method listed here?
+        https://ethankoch.medium.com/incredibly-fast-random-sampling-in-python-baf154bd836a#:~:text=%20Incredibly%20Fast%20Random%20Sampling%20in%20Python%20,does%20not%20end%20at%20method%202.%20More%20
+         
+        """
+
+        contacts = []
+
         num_contacts = int(len(self.model.hosts_0) * self.model.contact_rates[self.species_id][0][0])
         samp = random.sample(self.model.hosts_0, num_contacts)
         contacts = contacts + samp
-        
+
         num_contacts = int(len(self.model.hosts_1) * self.model.contact_rates[self.species_id][1][0])
         samp = random.sample(self.model.hosts_1, num_contacts)
         contacts = contacts + samp
-        
+
         num_contacts = int(len(self.model.hosts_2) * self.model.contact_rates[self.species_id][2][0])
         samp = random.sample(self.model.hosts_2, num_contacts)
         contacts = contacts + samp
-        
+
         num_contacts = int(len(self.model.hosts_3) * self.model.contact_rates[self.species_id][3][0])
         samp = random.sample(self.model.hosts_3, num_contacts)
         contacts = contacts + samp
-        
+
         return contacts
 
 
