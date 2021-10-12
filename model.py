@@ -13,6 +13,7 @@ import json
 rng = np.random.default_rng(seed=2021)
 
 
+
 species_infected = np.sum(infection_table,axis = 0) 
 fitness = (np.ones((17,10))/species_infected) * rng.normal(1, 0.2, (17, 10))
 class Host(Agent):
@@ -27,6 +28,7 @@ class Host(Agent):
         """
         
         self.rng = np.random.default_rng(seed=2021)
+
         self.id = model.next_id()
         super().__init__(self.id, model)  # Initialize basic agent code, assign a unique id
         self.model = model
@@ -96,6 +98,7 @@ class Host(Agent):
         """
         Viruses recombine. Stage 2 of each step.
         """
+        
         if (not (self.death)):
             if (self.temp_viruses != np.array([])):
                 reduce_to_one = np.vectorize(self.reduce_to_one)
@@ -111,6 +114,7 @@ class Host(Agent):
             if (self.death):
                 self.model.schedule.remove(self)
              
+
     def birth_death(self):
         """
         Agents have a chance of birth and death. Stage 4 of each step.
@@ -149,19 +153,39 @@ class Host(Agent):
 
     def contacts(self):
         """Returns a list of other organism the host has contacted and got viruses from."""
+
+
+        """
+        Optimizations: 
+        
+        Make a model-level variable that keeps track of the number of each type of host. Something like 
+        len(self.model.hosts_0) takes a while to count up the length of the list, and we have to do this
+        for each host. Better to update it once each step in a model-level and reference that.
+        
+        Most of the time though is spend on the random.sample function. Not sure how to fix this. 
+        Maybe try the last method listed here?
+        https://ethankoch.medium.com/incredibly-fast-random-sampling-in-python-baf154bd836a#:~:text=%20Incredibly%20Fast%20Random%20Sampling%20in%20Python%20,does%20not%20end%20at%20method%202.%20More%20
+         
+        """
+
         contacts = []
-        num_contacts = int(len(self.model.hosts_0) * self.model.contact_rates[self.species_id][0])
-        samp = list(self.rng.choice(self.model.hosts_0, num_contacts))
+
+        num_contacts = int(len(self.model.hosts_0) * self.model.contact_rates[self.species_id][0][0])
+        samp = random.sample(self.model.hosts_0, num_contacts)
         contacts = contacts + samp
-        num_contacts = int(len(self.model.hosts_1) * self.model.contact_rates[self.species_id][1])
-        samp = list(self.rng.choice(self.model.hosts_1, num_contacts))
+
+        num_contacts = int(len(self.model.hosts_1) * self.model.contact_rates[self.species_id][1][0])
+        samp = random.sample(self.model.hosts_1, num_contacts)
         contacts = contacts + samp
-        num_contacts = int(len(self.model.hosts_2) * self.model.contact_rates[self.species_id][2])
-        samp = list(self.rng.choice(self.model.hosts_2, num_contacts))
+
+        num_contacts = int(len(self.model.hosts_2) * self.model.contact_rates[self.species_id][2][0])
+        samp = random.sample(self.model.hosts_2, num_contacts)
         contacts = contacts + samp
-        num_contacts = int(len(self.model.hosts_3) * self.model.contact_rates[self.species_id][3])
-        samp = list(self.rng.choice(self.model.hosts_3, num_contacts))
+
+        num_contacts = int(len(self.model.hosts_3) * self.model.contact_rates[self.species_id][3][0])
+        samp = random.sample(self.model.hosts_3, num_contacts)
         contacts = contacts + samp
+
         return contacts
  
  
