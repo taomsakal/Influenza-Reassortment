@@ -2,16 +2,13 @@
 The agent and simulation class live here.
 """
  
-import random as rand
 import numpy as np
-import itertools
 from mesa import Agent, Model
 from mesa.time import StagedActivation
 from mesa.datacollection import DataCollector
 from parameters import infection_table
 from parameters import viruses as all_viruses
 import json
-import math
 
 rng = np.random.default_rng(seed=2021)
 
@@ -124,7 +121,7 @@ class Host(Agent):
         for i in all_viruses:
             setattr(self, f"H{i[0]+1}N{i[1]+1}", int(tuple(i) in self.virus_list))
              
-        if (self.model.iteration>0):
+        if (self.model.model_step>0):
             
             #Sets species specific mortality rates (birds and poultry less liekly to die from Influenza)
             if (self.species_id == 0):
@@ -183,7 +180,7 @@ class VirusModel(Model):
         self.it = it
         self.run = run
         self.running = True  # For batch runs
-        self.iteration = 0  # The number of timesteps the simulation has run
+        self.model_step = 0  # The number of timesteps the simulation has run
         self.schedule = StagedActivation(self, ["birth_death", "contract_virus", "recombine"], False, False)  # set schedule 
         self.infection_rate = infection_rate # infection rate
         self.recovery_rate = recovery_rate
@@ -209,9 +206,7 @@ class VirusModel(Model):
         self.hosts_2= []
         self.hosts_3= []
 
-        # It's a weird naming convention but self.iteration actually measures 
-        # the current step the model is on, not the current iteration
-        self.iteration = 0
+        self.model_step = 0
  
         # Adjacency matrix of gaussian contact rate distributions where entry ij is 
         # the contact rate species j to species i.
@@ -293,14 +288,14 @@ class VirusModel(Model):
 
         rng = np.random.default_rng(seed=2021)
         """Steps the entire model one time step."""
-        self.iteration += 1
+        self.model_step += 1
 
         #collects data after 350 steps
-        if(self.iteration > 0):
+        if(self.model_step >= 0):
             self.datacollector.collect(self)
         
         self.schedule.step()  # step all agents
-        print("0")
+
         #recovery
         recovering = rng.choice(np.array(self.schedule.agents), int(len(self.schedule.agents)*self.recovery_rate))
         for agent in recovering:
@@ -313,6 +308,7 @@ class VirusModel(Model):
                 agent.viruses[0,i] = 1
             agent.viruses[1:16,1:9] = 0
         
+        #antigen Drift
         losing_immunity = rng.choice(np.array(self.schedule.agents), int(len(self.schedule.agents)*self.mutation_rate))
         h = np.ones(17)
         h[:int(17*self.mutation_rate)] = 1
@@ -328,7 +324,7 @@ class VirusModel(Model):
             agent.viruses = agent.viruses * loss_array
         
 
-
+        #Birth
         for i in range(int(len(self.hosts_0) * self.birth_rate)):
             init_virus = np.zeros(170)
             init_virus = np.reshape(init_virus, (17,10))
@@ -359,7 +355,7 @@ class VirusModel(Model):
             init_virus = None 
 
 
-
+        #Immigration
         for i in range(int(len(self.hosts_0) * self.immigration_rate)):
 
             init_virus = np.zeros(170)
