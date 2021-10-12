@@ -111,8 +111,8 @@ class Host(Agent):
             for x in self.h:
                 for y in self.n:
                     self.viruses[x,y] = 1
-            if (self.death):
-                self.model.schedule.remove(self)
+        else:
+            self.model.schedule.remove(self)
              
 
     def birth_death(self):
@@ -141,12 +141,16 @@ class Host(Agent):
             if (self.rng.random(1)[0] < self.model.death_rate*(mortality**len(self.virus_list))):
                 if (self.species == "Human"):
                     self.model.hosts_0.remove( self )
+                    self.model.len_hosts_0 = self.model.len_hosts_0 -1
                 elif (self.species_id == 1):
                     self.model.hosts_1.remove( self )
+                    self.model.len_hosts_1 = self.model.len_hosts_1 -1
                 elif (self.species_id == 2):
                     self.model.hosts_2.remove( self )
+                    self.model.len_hosts_2 = self.model.len_hosts_2 -1
                 else:
                     self.model.hosts_3.remove( self )
+                    self.model.len_hosts_3 = self.model.len_hosts_3 -1
                 self.viruses = self.viruses * 0
                 self.death = True
                 
@@ -170,19 +174,19 @@ class Host(Agent):
 
         contacts = []
 
-        num_contacts = int(len(self.model.hosts_0) * self.model.contact_rates[self.species_id][0])
+        num_contacts = int(self.model.len_hosts_0 * self.model.contact_rates[self.species_id][0])
         samp = list(self.rng.choice(self.model.hosts_0, num_contacts))
         contacts = contacts + samp
 
-        num_contacts = int(len(self.model.hosts_1) * self.model.contact_rates[self.species_id][1])
+        num_contacts = int(self.model.len_hosts_1 * self.model.contact_rates[self.species_id][1])
         samp = list(self.rng.choice(self.model.hosts_1, num_contacts))
         contacts = contacts + samp
 
-        num_contacts = int(len(self.model.hosts_2) * self.model.contact_rates[self.species_id][2])
+        num_contacts = int(self.model.len_hosts_2 * self.model.contact_rates[self.species_id][2])
         samp = list(self.rng.choice(self.model.hosts_2, num_contacts))        
         contacts = contacts + samp
 
-        num_contacts = int(len(self.model.hosts_3) * self.model.contact_rates[self.species_id][3])
+        num_contacts = int(self.model.len_hosts_3 * self.model.contact_rates[self.species_id][3])
         samp = list(self.rng.choice(self.model.hosts_3, num_contacts))
         contacts = contacts + samp
 
@@ -318,6 +322,10 @@ class VirusModel(Model):
         if(self.model_step >= 0):
             self.datacollector.collect(self)
         
+        self.len_hosts_0 = len(self.hosts_0)
+        self.len_hosts_1 = len(self.hosts_1)
+        self.len_hosts_2 = len(self.hosts_2)
+        self.len_hosts_3 = len(self.hosts_3)
         self.schedule.step()  # step all agents
 
         #recovery
@@ -349,28 +357,28 @@ class VirusModel(Model):
         
 
         #Birth
-        for i in range(int(len(self.hosts_0) * self.birth_rate)):
+        for i in range(int(self.len_hosts_0 * self.birth_rate)):
             init_virus = np.zeros(170)
             init_virus = np.reshape(init_virus, (17,10))
             host = Host(self, "Human", init_virus)
             self.schedule.add(host)
             init_virus = None
             self.hosts_0.append(host)
-        for i in range(int(len(self.hosts_1) * self.birth_rate)):
+        for i in range(int(self.len_hosts_1 * self.birth_rate)):
             init_virus = np.zeros(170)
             init_virus = np.reshape(init_virus, (17,10))
             host = Host(self, "Pig",init_virus)
             self.schedule.add(host)
             init_virus = None
             self.hosts_1.append(host)
-        for i in range(int(len(self.hosts_2) * self.birth_rate)):
+        for i in range(int(self.len_hosts_2 * self.birth_rate)):
             init_virus = np.zeros(170)
             init_virus = np.reshape(init_virus, (17,10))
             host = Host(self, "Bird", init_virus)
             self.schedule.add(host)
             init_virus = None
             self.hosts_2.append(host)
-        for i in range(int(len(self.hosts_3) * self.birth_rate)):
+        for i in range(int(self.len_hosts_3 * self.birth_rate)):
             init_virus = np.zeros(170)
             init_virus = np.reshape(init_virus, (17,10))
             host = Host(self, "Poultry", init_virus)
@@ -380,7 +388,7 @@ class VirusModel(Model):
 
 
         #Immigration
-        for i in range(int(len(self.hosts_0) * self.immigration_rate)):
+        for i in range(int(self.len_hosts_0 * self.immigration_rate)):
 
             init_virus = np.zeros(170)
             init_virus[:34] = 1
@@ -391,7 +399,7 @@ class VirusModel(Model):
             self.schedule.add(host)
             init_virus = None
             self.hosts_0.append(host)
-        for i in range(int(len(self.hosts_1) * self.immigration_rate)):
+        for i in range(int(self.len_hosts_1 * self.immigration_rate)):
             
             init_virus = np.zeros(170)
             init_virus[:34] = 1
@@ -402,7 +410,7 @@ class VirusModel(Model):
             self.schedule.add(host)
             init_virus = None
             self.hosts_1.append(host)
-        for i in range(int(len(self.hosts_2) * self.immigration_rate)):
+        for i in range(int(self.len_hosts_2 * self.immigration_rate)):
             init_virus = np.zeros(170)
             init_virus[:34] = 1
             rng.shuffle(init_virus)
@@ -412,7 +420,7 @@ class VirusModel(Model):
             self.schedule.add(host)
             init_virus = None
             self.hosts_2.append(host)
-        for i in range(int(len(self.hosts_3) * self.immigration_rate)):
+        for i in range(int(self.len_hosts_3 * self.immigration_rate)):
             init_virus = np.zeros(170)
             init_virus[:34] = 1
             rng.shuffle(init_virus)
