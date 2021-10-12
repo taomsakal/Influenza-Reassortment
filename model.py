@@ -170,20 +170,20 @@ class Host(Agent):
 
         contacts = []
 
-        num_contacts = int(len(self.model.hosts_0) * self.model.contact_rates[self.species_id][0][0])
-        samp = random.sample(self.model.hosts_0, num_contacts)
+        num_contacts = int(len(self.model.hosts_0) * self.model.contact_rates[self.species_id][0])
+        samp = list(self.rng.choice(self.model.hosts_0, num_contacts))
         contacts = contacts + samp
 
-        num_contacts = int(len(self.model.hosts_1) * self.model.contact_rates[self.species_id][1][0])
-        samp = random.sample(self.model.hosts_1, num_contacts)
+        num_contacts = int(len(self.model.hosts_1) * self.model.contact_rates[self.species_id][1])
+        samp = list(self.rng.choice(self.model.hosts_1, num_contacts))
         contacts = contacts + samp
 
-        num_contacts = int(len(self.model.hosts_2) * self.model.contact_rates[self.species_id][2][0])
-        samp = random.sample(self.model.hosts_2, num_contacts)
+        num_contacts = int(len(self.model.hosts_2) * self.model.contact_rates[self.species_id][2])
+        samp = list(self.rng.choice(self.model.hosts_2, num_contacts))        
         contacts = contacts + samp
 
-        num_contacts = int(len(self.model.hosts_3) * self.model.contact_rates[self.species_id][3][0])
-        samp = random.sample(self.model.hosts_3, num_contacts)
+        num_contacts = int(len(self.model.hosts_3) * self.model.contact_rates[self.species_id][3])
+        samp = list(self.rng.choice(self.model.hosts_3, num_contacts))
         contacts = contacts + samp
 
         return contacts
