@@ -2,8 +2,8 @@
 This file contains the rules and tables for what can infect what, along with the contact rates.
 """
 
-import numpy as np
 import itertools
+import numpy as np
 
 viruses = np.array([tuple(x) for x in itertools.product(range(1,17),range(1,10))])
 
