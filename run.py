@@ -104,7 +104,7 @@ class TestClass:
 
 
 fixed_params = {"run": "NA",
-               "init_pop_size": [900, 700, 1000, 850]}
+               "init_pop_size": [50, 50, 50, 50]}
 variable_params = {"it":[0]}
 
 batch_run = BatchRunner(VirusModel,
