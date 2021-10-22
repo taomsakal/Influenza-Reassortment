@@ -16,6 +16,15 @@ rng = np.random.default_rng(seed=2021)
 
 species_infected = np.sum(infection_table,axis = 0) 
 fitness = (np.ones((17,10))/species_infected) * rng.normal(1, 0.2, (17, 10))
+
+
+def reduce_to_one(x): # Takes up 5% of runtime
+        if (int(x)>1):
+            return(1)
+        else:
+            return(0)
+
+vfreduce_to_one = np.vectorize(reduce_to_one)
 class Host(Agent):
   
     def __init__(self, model, species, viruses=None):
@@ -45,12 +54,11 @@ class Host(Agent):
         self.temp_viruses = np.array([])
         self.viruses = viruses * infection_table[self.species_id]
         # Right now the viruses that a host has are listed in a set.
-        # todo: We'll explore using a matrix to store this info later to avoid loops.
         
         self.virus_list = [tuple(x) for x in np.asarray(np.where(self.viruses==1)).T]
          
         #sets variables for agent reporters to measure each virus
-        for i in all_viruses:
+        for i in all_viruses: # takes up 7% of runtime
             setattr(self, f"H{i[0]+1}N{i[1]+1}", int(tuple(i) in self.virus_list))
 
     def __eq__(self, other):
@@ -67,32 +75,21 @@ class Host(Agent):
             self.base_rate = self.model.infection_rate
 
             for contact in contacts:
-                viruses_transferred = np.array(self.viruses) * infection_table[contact.species_id] * self.base_rate
+                viruses_transferred = np.array(self.viruses) * infection_table[contact.species_id] * self.base_rate # takes up 3% of runtime
                 viruses_transferred[:,0] = 0
                 viruses_transferred[0,:] = 0
                 if(self.model.fitness_on):
                     viruses_transferred = viruses_transferred * fitness
 
-                for i in range (16):
+                for i in range (16): # takes up 9% of runtime (the if statement below itself takes 6% just to check if equal)
                     if (contact.viruses[i + 1, 0] == 1):
                         viruses_transferred[i+1, 1:10] = viruses_transferred[i+1, 1:10] * 0.5
-                for i in range (9):
+                for i in range (9): # takes up 4% of runtime (the if statement below itself takes 3% just to check if equal)
                     if (contact.viruses[0, i+1] == 1):
                         viruses_transferred[1:16, i+1] = viruses_transferred[1:16, i+1] * 0.5
 
-                transfer = np.vectorize(self.transfer)
-                contact.temp_viruses = transfer(viruses_transferred)
-
-
                 
-    def transfer(self, x):
-        return rng.choice(a=[1,0],p=[x,1-x])
-    
-    def reduce_to_one(self, x):
-        if (int(x)>1):
-            return(1)
-        else:
-            return(0)
+                contact.temp_viruses = rng.binomial(1, viruses_transferred)
     
     def recombine(self):
         """
@@ -101,8 +98,7 @@ class Host(Agent):
         
         if (not (self.death)):
             if (self.temp_viruses != np.array([])):
-                reduce_to_one = np.vectorize(self.reduce_to_one)
-                self.viruses = reduce_to_one(self.viruses + self.temp_viruses)
+                self.viruses = vfreduce_to_one(self.viruses + self.temp_viruses)
                 self.temp_viruses = np.array([])
             virus_list = np.where(self.viruses[1:16,1:9]==1)
             self.h = set(virus_list[0]+1)
@@ -122,7 +118,7 @@ class Host(Agent):
 
         self.virus_list = [tuple(x) for x in np.asarray(np.where(self.viruses==1)).T]
         
-        for i in all_viruses:
+        for i in all_viruses: #takes up 53% of runtime
             setattr(self, f"H{i[0]+1}N{i[1]+1}", int(tuple(i) in self.virus_list))
              
         if (self.model.model_step>0):
@@ -183,7 +179,7 @@ class Host(Agent):
         contacts = contacts + samp
 
         num_contacts = int(self.model.len_hosts_2 * self.model.contact_rates[self.species_id][2])
-        samp = list(self.rng.choice(self.model.hosts_2, num_contacts))        
+        samp = list(self.rng.choice(self.model.hosts_2, num_contacts)) #takes up 5% of runtime    
         contacts = contacts + samp
 
         num_contacts = int(self.model.len_hosts_3 * self.model.contact_rates[self.species_id][3])
@@ -215,7 +211,7 @@ class VirusModel(Model):
         self.mutation_rate = mutation_rate
         self.birth_rate = birth_rate
         self.death_rate = death_rate
-        self.cross_immunity_effect = cross_immunity_effect
+        self.cross_immunity_effect = cross_immunity_effect  # compare polarizing immunity to semi-crossimmunity
         self.init_viruses = init_viruses
         self.immigration_rate = immigration_rate
         self.fitness_on = fitness_on
@@ -331,7 +327,7 @@ class VirusModel(Model):
         #recovery
         recovering = rng.choice(np.array(self.schedule.agents), int(len(self.schedule.agents)*self.recovery_rate))
         for agent in recovering:
-            virus_list = np.where(agent.viruses[1:16,1:9]==1)
+            virus_list = np.where(agent.viruses[1:18,1:11]==1)
             h = set(virus_list[0]+1)
             n = set(virus_list[1]+1)
             for i in h:
