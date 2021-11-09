@@ -5,6 +5,7 @@ from mesa.batchrunner import BatchRunner
 
 from model import Host
 from model import VirusModel
+import time
 
 
 class TestClass:
@@ -71,6 +72,7 @@ class TestClass:
                                 max_steps=100,
                                 display_progress=True
                                 )
+        
         batch_run.run_all()
         agent_data = list(batch_run.get_collector_agents().values())
         full_data = pd.DataFrame(agent_data[0])
@@ -94,8 +96,8 @@ class TestClass:
 
 
 fixed_params = {"run": "NA",
-                "init_pop_size": [900, 700, 1000, 850]}
-variable_params = {"it": [0]}
+               "init_pop_size": [50, 50, 50, 50]}
+variable_params = {"it":[0]}
 
 batch_run = BatchRunner(VirusModel,
                         fixed_parameters=fixed_params,
@@ -104,7 +106,6 @@ batch_run = BatchRunner(VirusModel,
                         max_steps=100,
                         display_progress=False
                         )
-
 batch_run.run_all()
 agent_data = list(batch_run.get_collector_agents().values())
 print(agent_data)
