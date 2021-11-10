@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from mesa.batchrunner import BatchRunner
+import pytest
 
 from model import VirusModel
 
