@@ -118,3 +118,4 @@ for i in range(1, len(agent_data) - 1):
     full_data = pd.concat([full_data, data], axis=0)
 
 print(full_data.head())
+print(full_data.tail())
