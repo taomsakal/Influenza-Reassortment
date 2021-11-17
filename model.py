@@ -43,6 +43,9 @@ class Host(Agent):
         self.model = model
         self.it = 0
 
+        self.mutation_prob = 0.001
+        self.recovery_prob = .01
+
 
         # Viruses will be held in a matrix of size num_H x num_N.
         # The entry i,j represents the probability of having virus HiNj.
@@ -71,7 +74,6 @@ class Host(Agent):
         Contacts other agents and is exposed to viruses.
         """
 
-
         contacts = self.contacts()  # Get list of contacts
         exposures = [contact.viruses for contact in contacts]  # Get virus matrices of those exposed to
         transmission_probabilities = [exposure *
@@ -86,6 +88,7 @@ class Host(Agent):
                                   self.species_id] * transmitted_viruses  # Filter out the ones species is ressistant to.
 
         self.temp_viruses = transmitted_viruses  # Store these viruses in the temp viruses variable until after all contacts are finished.
+
 
         #
         # for contact in contacts:
@@ -104,24 +107,47 @@ class Host(Agent):
         #
         #     contact.temp_viruses = helpers.vectransfer(viruses_transferred)
 
-    def reduce_to_one(self, x):
+    def mutate(self, H, N):
         """
-        Returns an array of True an Falses, where True is when an entry is bigger than one.
-        This means all values less than one become zero and all above one become one.
+        Each virus in the host has a chance of mutating into a new virus with either H or N changed.
+        This function adds a new H or N protein
+
+        Note: This assumes that a H or N mutation is rare and only happens once in a host. Because of this
+        a uniform mutation probability is a close approximation. Especially if we assume the host always carries
+        constant number of viruses and only the distribution of types change.
+
+        This data is then passed to recombine. Because of how the calculation works
+        hosts without any viruses automatically throw away the mutant, which means
+        we can skip the check to see if the host has any viruses.
+
         """
-        return x > 1
+
+        if rng.random(1) < self.mutation_prob:
+            if rng.random(1) < .5:  # Equal chance to mutate into H or N
+                # Pick a random index and add to the H list
+                new_H_index = rng.integers(NUM_H)
+                H[new_H_index] += 1
+            else:
+                # Pick a random N and add to N list.
+                new_N_index = rng.integers(NUM_N)
+                N[new_N_index] += 1
+
+        return H, N
+
+
 
     def recombine(self):
         """
         Transmitted viruses appear in the host and viruses recombine. Stage 2 of each step.
         """
-
-        self.viruses += self.temp_viruses  # Add transmitted viruses to matrix of viruses host has
+        self.viruses += self.temp_viruses  # Add transmitted viruses to matrix of viruses host has AFTER all hosts went though the transmission step
         self.viruses = self.viruses.astype(float)  # Convert from bool to floats
 
-        H = np.sum(self.viruses, axis=0)  # Sum up rows to get an array that has a positive number in entry i when Hi is present.
-        N = np.sum(self.viruses, axis=1)  # Sum up each column to get an array with a positive number in entry i when Ni is present.
-        combos = np.outer(N, H)  # Outer product to get every possible combination.
+
+        self.H = np.sum(self.viruses, axis=1)  # Sum up rows to get an array that has a positive number in entry i when Hi is present.
+        self.N = np.sum(self.viruses, axis=0)  # Sum up each column to get an array with a positive number in entry i when Ni is present.
+        self.H, self.N = self.mutate(self.H, self.N)
+        combos = np.outer(self.H, self.N)  # Outer product to get every possible combination.
         combos = combos >= ONES  # Ensure any number above 1 becomes 1. All others become zero.
         self.viruses = combos.astype(float)
 
@@ -132,6 +158,18 @@ class Host(Agent):
         # for x in self.h:
         #     for y in self.n:
         #         self.viruses[x, y] = 1
+
+    def recover(self):
+        """
+        Recover from all current viruses and become immune to those of that type.
+
+        #TODO: add immunity
+        """
+
+        if rng.random(1) < self.recovery_prob:
+            self.viruses = ZEROS
+            #self.immunity =
+
 
 
     def birth_death(self):
@@ -270,7 +308,7 @@ class VirusModel(Model):
         # 3 -> birds
         # 4 -> poultry
         # todo: put more reasonable values
-        if (contact_rates is None):
+        if contact_rates is None:
             self.contact_rates = np.array([[0.01, 0.0045, 0.002, 0.001],
                                            [0.0045, 0.0095, 0.003, 0.0045],
                                            [0.002, 0.003, 0.09, 0.003],
@@ -328,37 +366,47 @@ class VirusModel(Model):
         self.len_hosts_3 = len(self.hosts_3)
 
         self.schedule.step()  # step all agents
+        self.immigrate(self.immigration_rate)
 
-        # Todo: put this in agent class
-        # recovery
-        recovering = rng.choice(np.array(self.schedule.agents), int(len(self.schedule.agents) * self.recovery_rate))
-        for agent in recovering:
-            virus_list = np.where(agent.viruses[1:16, 1:9] == 1)
-            h = set(virus_list[0] + 1)
-            n = set(virus_list[1] + 1)
-            for i in h:
-                agent.viruses[i, 0] = 1
-            for i in n:
-                agent.viruses[0, i] = 1
-            agent.viruses[1:16, 1:9] = 0
+        # # Todo: put this in agent class if does not slow down too much?
+        # # recovery
+        # recovering = rng.choice(np.array(self.schedule.agents), int(len(self.schedule.agents) * self.recovery_rate))
+        # for agent in recovering:
+        #     virus_list = np.where(agent.viruses[1:16, 1:9] == 1)
+        #     h = set(virus_list[0] + 1)
+        #     n = set(virus_list[1] + 1)
+        #     for i in h:
+        #         agent.viruses[i, 0] = 1
+        #     for i in n:
+        #         agent.viruses[0, i] = 1
+        #     agent.viruses[1:16, 1:9] = 0
 
 
-        # Todo: put this in agent class
-        # antigen Drift
-        losing_immunity = rng.choice(np.array(self.schedule.agents),
-                                     int(len(self.schedule.agents) * self.mutation_rate))
-        h = np.ones(17)
-        h[:int(17 * self.mutation_rate)] = 1
-        rng.shuffle(h)
-        n = np.ones(10)
-        n[:int(10 * self.mutation_rate)] = 1
-        rng.shuffle(n)
-        loss_array = np.ones((17, 10))
-        loss_array[:, 0] = h
-        loss_array[0, :] = n
+        # # Todo: put this in agent class
+        # # antigen Drift
+        # losing_immunity = rng.choice(np.array(self.schedule.agents),
+        #                              int(len(self.schedule.agents) * self.mutation_prob))
+        # h = np.ones(17)
+        # h[:int(17 * self.mutation_prob)] = 1
+        # rng.shuffle(h)
+        # n = np.ones(10)
+        # n[:int(10 * self.mutation_prob)] = 1
+        # rng.shuffle(n)
+        # loss_array = np.ones((17, 10))
+        # loss_array[:, 0] = h
+        # loss_array[0, :] = n
 
-        for agent in losing_immunity:
-            agent.viruses = agent.viruses * loss_array
+        # for agent in losing_immunity:
+        #     agent.viruses = agent.viruses * loss_array
+
+
+
+    def immigrate(self, p):
+        """
+        A random virus immigrates into a random population with probability p.
+        """
+
+        pass
 
         # Todo: make it so a new immigant replaces and old one instead of being added to the population?
         #     # Immigration
@@ -402,7 +450,6 @@ class VirusModel(Model):
         #     self.schedule.add(host)
         #     self.hosts_3.append(host)
         # #     init_virus = None
-
 
 if __name__ == '__main__':
     pass
