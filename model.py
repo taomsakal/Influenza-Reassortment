@@ -44,7 +44,8 @@ class Host(Agent):
         self.it = 0
 
         self.mutation_prob = 0.001
-        self.recovery_prob = .01
+        self.recovery_prob = 0.005
+        self.death_rate = .001
 
 
         # Viruses will be held in a matrix of size num_H x num_N.
@@ -74,6 +75,8 @@ class Host(Agent):
         Contacts other agents and is exposed to viruses.
         """
 
+
+
         contacts = self.contacts()  # Get list of contacts
         exposures = [contact.viruses for contact in contacts]  # Get virus matrices of those exposed to
         transmission_probabilities = [exposure *
@@ -88,6 +91,9 @@ class Host(Agent):
                                   self.species_id] * transmitted_viruses  # Filter out the ones species is ressistant to.
 
         self.temp_viruses = transmitted_viruses  # Store these viruses in the temp viruses variable until after all contacts are finished.
+
+        if rng.random() < .01:
+            print(self.temp_viruses)
 
 
         #
@@ -195,7 +201,7 @@ class Host(Agent):
 
         # Todo: Chance of death increases with number of viruses the host is infected by. Calculate the number via np.sum(self.viruses)
         # If die just replace host with an empty one. Ie a new organism took the old one's place.
-        if self.rng.random(1)[0] < self.model.death_rate:
+        if self.rng.random(1)[0] < self.death_rate:
             self.viruses = ZEROS
             self.immunity = ONES
 
@@ -312,7 +318,7 @@ class VirusModel(Model):
             self.contact_rates = np.array([[0.01, 0.0045, 0.002, 0.001],
                                            [0.0045, 0.0095, 0.003, 0.0045],
                                            [0.002, 0.003, 0.09, 0.003],
-                                           [0.001, 0.0045, 0.003, 0.01]])
+                                           [0.001, 0.0045, 0.003, 0.01]]) * 10
         else:
             self.contact_rates = contact_rates
 
@@ -323,7 +329,7 @@ class VirusModel(Model):
         for i in range(np.sum(init_pop_size)):
 
             species = random.choice(["Human", "Pig", "Bird", "Poultry"])  # Decide species with equal probability.
-            init_viruses = np.random.choice([0, 1], size=(NUM_H, NUM_N), p=[.01, .99])  # Randomly decide some viruses it has
+            init_viruses = np.random.choice([0, 1], size=(NUM_H, NUM_N), p=[.99, .01])  # Randomly decide some viruses it has
             host = Host(self, species, init_viruses)  # Make the host
             self.schedule.add(host)  # Add it to the list of hosts that the model simulates
 
@@ -357,7 +363,7 @@ class VirusModel(Model):
         self.model_step += 1
 
         # collects data after 350 steps
-        if (self.model_step >= 0):
+        if self.model_step >= 0:
             self.datacollector.collect(self)
 
         self.len_hosts_0 = len(self.hosts_0)
