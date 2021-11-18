@@ -118,7 +118,7 @@ class Host(Agent):
 
     def recovery(self):
         """
-        Agents have a chance of recovery and gain immunity to recovered antigens. Stage 3 of each step.
+        Agents have a chance of recovery and gain susceptibility to recovered antigens. Stage 3 of each step.
         """
 
         """
@@ -127,9 +127,9 @@ class Host(Agent):
         This code is taking almost 40% of the runtime. We can use something like the Gilspie algorithm to fix this.
         (To do this for recovery we might have to remove the time-dependent recovery, but that's okay.)
         
-        Instead of each host doing a random role to see if they loose immunity we can use the recovery rate
+        Instead of each host doing a random role to see if they loose susceptibility we can use the recovery rate
         to calculate the expected number of hosts that become immune. Then a draw from a bell curve can give
-        the actual number that become immune. Then we randomly sample that number of hosts and give them immunity.
+        the actual number that become immune. Then we randomly sample that number of hosts and give them susceptibility.
         
         Likewise for antigenic drift we can calculate the expected number of hosts that will loose one antigen. 
         Take all of those hosts and remove one antigen. We can probably ignore hosts that loose more than one
@@ -148,14 +148,14 @@ class Host(Agent):
             # recovery chance increase over time
             self.recovery_chance = self.model.recovery_rate * self.time_since_infection
 
-            # Removes viruses and adds immunity if the host recovers
+            # Removes viruses and adds susceptibility if the host recovers
             if np.random.rand(1, 1)[0, 0] <= self.recovery_chance:
                 self.time_since_infection = 0
                 self.h_immune = self.h_immune.union({item[0] for item in self.viruses})
                 self.n_immune = self.n_immune.union({item[1] for item in self.viruses})
                 self.viruses = set()
 
-        # Chance of losing immunity (mimics antigenic drift)
+        # Chance of losing susceptibility (mimics antigenic drift)
         if len(self.h_immune) > 0:
             self.h_immune = set(
                 [i for i in self.h_immune if (np.random.rand(1, 1)[0, 0] < self.model.mutation_rate)])  # 0.95

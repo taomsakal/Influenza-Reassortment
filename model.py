@@ -43,16 +43,16 @@ class Host(Agent):
         self.model = model
         self.it = 0
 
-        self.mutation_prob = 0.001
-        self.recovery_prob = 0.005
-        self.death_rate = .001
+        self.mutation_prob = 0.0001
+        self.recovery_prob = 0.3
+        self.death_rate = 0.005
 
 
         # Viruses will be held in a matrix of size num_H x num_N.
         # The entry i,j represents the probability of having virus HiNj.
         self.viruses = ZEROS + viruses
 
-        self.immunity = ONES  # A matrix. Entry i,j is 1 if susceptible to HiNj, 0 if immune. A value in between represents partial immunity.
+        self.susceptibility = ONES  # A matrix. Entry i,j is 1 if susceptible to HiNj, 0 if immune. A value in between represents partial susceptibility.
 
         self.species = species  # Species of the host organism
         self.species_id = ["Human", "Pig", "Bird", "Poultry"].index(self.species)  # Species id number for looking up in infection table with
@@ -73,6 +73,8 @@ class Host(Agent):
         """
         STAGE 1
         Contacts other agents and is exposed to viruses.
+
+        Warning: this seems to have a bug where the first row and column are always transmitted?
         """
 
 
@@ -81,9 +83,9 @@ class Host(Agent):
         exposures = [contact.viruses for contact in contacts]  # Get virus matrices of those exposed to
         transmission_probabilities = [exposure *
                                       self.model.transmission_prob *
-                                      self.immunity
+                                      self.susceptibility
                                       for exposure in
-                                      exposures]  # Find the transmission probability of each virus, taking into account immunity
+                                      exposures]  # Find the transmission probability of each virus, taking into account susceptibility
         transmitted_viruses = [self.collapse_probabilities(p) for p in
                                transmission_probabilities]  # Decide which viruses actually did infect
         transmitted_viruses = np.sum(transmitted_viruses, axis=0)  # Sum up all the infections from each contact
@@ -92,8 +94,7 @@ class Host(Agent):
 
         self.temp_viruses = transmitted_viruses  # Store these viruses in the temp viruses variable until after all contacts are finished.
 
-        if rng.random() < .01:
-            print(self.temp_viruses)
+
 
 
         #
@@ -127,6 +128,9 @@ class Host(Agent):
         we can skip the check to see if the host has any viruses.
 
         """
+
+        if rng.random() < .01:
+            print(self.viruses)
 
         if rng.random(1) < self.mutation_prob:
             if rng.random(1) < .5:  # Equal chance to mutate into H or N
@@ -169,12 +173,33 @@ class Host(Agent):
         """
         Recover from all current viruses and become immune to those of that type.
 
-        #TODO: add immunity
+        This might be a hugely unrealistic approximation with the host recovering from everything at once.
         """
 
+
+
         if rng.random(1) < self.recovery_prob:
+
+            # ADD IMMUNITY
+            # TODO: Outer products may be in wrong order. Need to run tests.
+
+            # Make a matrix where every H row is filled with a positive number if and only if the host has at
+            # least one virus with that H protein.
+            immune_H = np.outer(self.H, np.ones(NUM_N))
+
+            # Same thing but fill each N column with positive numbers if the host has a virus with that N protein
+            immune_N = np.outer(np.ones(NUM_H), self.N)
+
+            # Add these together. All positive entries are the virus the host is immune to.
+            immune = immune_N + immune_H
+            immune = immune > 0  # Change to boolean matrix with True in entry i,j if the host is immune to HiNj
+
+            # Invert this boolean matrix to figure out what viruses the host is susceptible to.
+            self.susceptibility = np.invert(immune).astype(float)  # invert so that is a susceptibility matrix instead of an immunity one.
+
+            # Host recovers from all viruses
             self.viruses = ZEROS
-            #self.immunity =
+
 
 
 
@@ -203,7 +228,7 @@ class Host(Agent):
         # If die just replace host with an empty one. Ie a new organism took the old one's place.
         if self.rng.random(1)[0] < self.death_rate:
             self.viruses = ZEROS
-            self.immunity = ONES
+            self.susceptibility = ONES
 
 
         #     if (self.species == "Human"):
@@ -279,7 +304,7 @@ class VirusModel(Model):
         self.run = run
         self.running = True  # For batch runs
         self.model_step = 0  # The number of timesteps the simulation has run
-        self.schedule = StagedActivation(self, ["contract_virus", "recombine", "birth_death"])  # set schedule
+        self.schedule = StagedActivation(self, ["contract_virus", "recombine", "recover", "birth_death"])  # set schedule
         self.infection_rate = infection_rate
         self.recovery_rate = recovery_rate
         self.mutation_rate = mutation_rate
