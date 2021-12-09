@@ -29,7 +29,6 @@ rng = np.random.default_rng(seed=2021)
 #species_infected = np.sum(infection_table, axis=0)
 #fitness = (np.ones((17, 10)) / species_infected) * rng.normal(1, 0.2, (17, 10))
 
-
 class Host(Agent):
 
     def __init__(self, model, species, viruses=ZEROS):
@@ -81,6 +80,7 @@ class Host(Agent):
         # Holder for viruses after contact before all individuals have contacted each other
         self.temp_viruses = ZEROS
 
+
         # sets variables for agent reporters to measure each virus
         self.virus_list = [tuple(x) for x in np.asarray(np.where(self.viruses == 1)).T]
         for i in all_viruses:
@@ -98,8 +98,10 @@ class Host(Agent):
         Todo: Bugfix. It seems the first row and column are always transmitted?
         """
 
+
         if rng.random() < .01:
             print(self.species, self.viruses)
+
 
         contacts = self.contacts()  # Get list of contacts
         exposures = [contact.viruses for contact in contacts]  # Get virus matrices of those agen was exposed to
@@ -128,6 +130,7 @@ class Host(Agent):
 
 
 
+
     def recombine(self):
         """
         STAGE 2
@@ -140,10 +143,12 @@ class Host(Agent):
         self.viruses = self.viruses.astype(float)  # Convert from bool to floats
 
 
+
         self.H = np.sum(self.viruses, axis=1)  # Sum up rows to get an array that has a positive number in entry i when Hi is present.
         self.N = np.sum(self.viruses, axis=0)  # Sum up each column to get an array with a positive number in entry i when Ni is present.
         self.H, self.N = self.mutate(self.H, self.N)
         combos = np.outer(self.H, self.N)  # Outer product to get every possible combination.
+
         combos = combos >= ONES  # Ensure any number above 1 becomes 1. All others become zero.
         self.viruses = combos.astype(float)  # Convert from bool to floats
 
@@ -286,7 +291,7 @@ class VirusModel(Model):
         self.mutation_rate = mutation_rate
         self.birth_rate = birth_rate
         self.death_rate = death_rate
-        self.cross_immunity_effect = cross_immunity_effect
+        self.cross_immunity_effect = cross_immunity_effect  # compare polarizing immunity to semi-crossimmunity
         self.init_viruses = init_viruses
         self.immigration_rate = immigration_rate
         self.fitness_on = fitness_on
@@ -382,6 +387,7 @@ class VirusModel(Model):
         """
 
         pass
+
 
         # Todo: make it so a new immigant replaces and old one instead of being added to the population?
         #     # Immigration
